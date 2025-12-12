@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Admin Dashboard</title>
+  </head>
+
+  <body class="bg-gray-100">
+    <!-- TOP NAV -->
+    <nav class="bg-blue-600 p-4 text-white text-xl font-bold">
+      Admin Dashboard
+    </nav>
+
+    <div class="flex">
+      <!-- ============ SIDEBAR ============ -->
+      <aside class="w-64 bg-white h-screen shadow-md p-5">
+        <h2 class="text-lg font-bold mb-4">Menu</h2>
+
+        <ul class="space-y-2">
+          <li>
+            <button
+              onclick="showSection('users')"
+              class="w-full text-left p-2 rounded hover:bg-blue-100"
+            >
+              All Agents
+            </button>
+          </li>
+          <li>
+            <button
+              onclick="showSection('createAgent')"
+              class="w-full text-left p-2 rounded hover:bg-blue-100"
+            >
+              Create Agent
+            </button>
+          </li>
+          <li>
+            <button
+              id="logoutBtn"
+              class="w-full text-left p-2 rounded hover:bg-blue-100"
+            >
+              Logout
+            </button>
+          </li>
+        </ul>
+      </aside>
+
+      <!-- ============ MAIN CONTENT ============ -->
+      <div class="flex-1 p-8">
+        <!-- ALL USERS SECTION -->
+        <div id="usersSection" class="hidden">
+          <h2 class="text-2xl font-semibold mb-4">All Agents</h2>
+
+          <table class="w-full border">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="p-2 border">Name</th>
+                <th class="p-2 border">Email</th>
+                <th class="p-2 border">Created At</th>
+              </tr>
+            </thead>
+            <tbody id="userTable"></tbody>
+          </table>
+        </div>
+
+        <!-- CREATE AGENT SECTION -->
+        <div id="createAgentSection" class="hidden">
+          <h2 class="text-2xl font-semibold mb-4">Create Agent</h2>
+
+          <form id="agentForm" class="bg-white p-6 rounded shadow w-96">
+            <label class="block mb-3">
+              <span class="font-semibold">Name</span>
+              <input
+                type="text"
+                id="agentName"
+                class="w-full p-2 border rounded"
+                required
+              />
+            </label>
+
+            <label class="block mb-3">
+              <span class="font-semibold">Email</span>
+              <input
+                type="email"
+                id="agentEmail"
+                class="w-full p-2 border rounded"
+                required
+              />
+            </label>
+
+            <label class="block mb-3">
+              <span class="font-semibold">Password</span>
+              <input
+                type="password"
+                id="agentPassword"
+                class="w-full p-2 border rounded"
+                required
+              />
+            </label>
+
+            <button
+              type="submit"
+              class="bg-blue-600 text-white px-4 py-2 rounded mt-2"
+            >
+              Create Agent
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        localStorage.removeItem("adminToken");
+        window.location.href = "/admin-login.html";
+      });
+      if (!localStorage.getItem("adminToken")) {
+        window.location.href = "/admin-login.html";
+      }
+
+      // Show Sections
+      function showSection(section) {
+        document.getElementById("usersSection").classList.add("hidden");
+        document.getElementById("createAgentSection").classList.add("hidden");
+
+        if (section === "users") loadUsers();
+
+        document.getElementById(section + "Section").classList.remove("hidden");
+      }
+
+      // Load Agents (Users)
+      async function loadUsers() {
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          alert("Unauthorized. Please login first.");
+          window.location.href = "/admin-login.html";
+          return;
+        }
+
+        const res = await fetch("/api/admin/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+
+        const table = document.getElementById("userTable");
+        table.innerHTML = "";
+
+        data.users.forEach((u) => {
+          table.innerHTML += `
+          <tr>
+            <td class="p-2 border">${u.name}</td>
+            <td class="p-2 border">${u.email}</td>
+            <td class="p-2 border">${new Date(
+              u.createdAt
+            ).toLocaleString()}</td>
+          </tr>
+        `;
+        });
+      }
+
+      // Create Agent Form Submit
+      document
+        .getElementById("agentForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const token = localStorage.getItem("adminToken");
+
+          const agent = {
+            name: document.getElementById("agentName").value,
+            email: document.getElementById("agentEmail").value,
+            password: document.getElementById("agentPassword").value,
+          };
+
+          const res = await fetch("/api/admin/create-agent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(agent),
+          });
+
+          const data = await res.json();
+          alert(data.message);
+
+          if (data.success) {
+            document.getElementById("agentForm").reset();
+          }
+        });
+
+      // Default load All Agents
+      showSection("users");
+    </script>
+  </body>
+</html>

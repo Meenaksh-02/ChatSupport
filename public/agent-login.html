@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Agent Login</title>
+  </head>
+
+  <body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="w-96 bg-white p-6 rounded shadow">
+      <h2 class="text-2xl font-bold mb-4">Agent Login</h2>
+
+      <form id="agentLoginForm">
+        <label class="block mb-3">
+          <span>Email</span>
+          <input
+            type="email"
+            id="agentEmail"
+            class="w-full p-2 border rounded"
+            required
+          />
+        </label>
+
+        <label class="block mb-3">
+          <span>Password</span>
+          <input
+            type="password"
+            id="agentPassword"
+            class="w-full p-2 border rounded"
+            required
+          />
+        </label>
+
+        <button class="bg-blue-600 text-white p-2 w-full rounded" type="submit">
+          Login
+        </button>
+      </form>
+    </div>
+
+    <script>
+      async function handleAgentLogin(e) {
+        e.preventDefault();
+
+        const email = document.getElementById("agentEmail").value;
+        const password = document.getElementById("agentPassword").value;
+
+        const res = await fetch("/api/agent/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        console.log(data);
+
+        if (data.success) {
+          localStorage.setItem("agentToken", data.token);
+
+          localStorage.setItem("agent", JSON.stringify(data.agent));
+          alert("Login successful!");
+          window.location.href = "/agent-dashboard.html"; // or your route
+        } else {
+          alert(data.message);
+        }
+      }
+
+      document
+        .getElementById("agentLoginForm")
+        .addEventListener("submit", handleAgentLogin);
+    </script>
+  </body>
+</html>

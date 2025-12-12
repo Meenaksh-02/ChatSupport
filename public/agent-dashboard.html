@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Admin Chat Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- SOCKET.IO CLIENT -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+
+  <body class="bg-gray-100 h-screen">
+    <!-- MAIN WRAPPER -->
+    <div class="flex h-full">
+      <!-- LEFT SIDEBAR -->
+      <div class="w-1/3 bg-white border-r overflow-y-auto">
+        <h2 class="p-4 text-xl font-bold border-b">
+          <div id="agentDetails"></div>
+        </h2>
+        <div id="chatList"></div>
+        <button
+          id="agentLogoutBtn"
+          class="p-4 w-full text-left font-bold border-b hover:bg-gray-200 cursor-pointer"
+        >
+          Logout
+        </button>
+      </div>
+
+      <!-- RIGHT CHAT WINDOW -->
+      <div class="flex-1 flex flex-col">
+        <div class="p-4 bg-white border-b font-bold" id="chatHeader">
+          Select a chat
+        </div>
+
+        <div id="messages" class="flex-1 p-4 overflow-y-auto bg-gray-50"></div>
+
+        <div class="p-4 bg-white border-t">
+          <input
+            id="msgInput"
+            class="w-full border p-2 rounded"
+            placeholder="Type message..."
+          />
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const agent = JSON.parse(localStorage.getItem("agent"));
+
+      document
+        .getElementById("agentLogoutBtn")
+        .addEventListener("click", () => {
+          localStorage.removeItem("agentToken");
+          window.location.href = "/agent-login.html";
+        });
+      if (!localStorage.getItem("agentToken")) {
+        window.location.href = "/agent-login.html";
+      }
+
+      const socket = io("http://localhost:5000");
+      let selectedChatId;
+
+      // Load sidebar chats
+      function loadChats() {
+        fetch("http://localhost:5000/api/chat/all?agentId=" + agent._id)
+          .then((res) => res.json())
+          .then((data) => {
+            const list = document.getElementById("chatList");
+            list.innerHTML = "";
+
+            data.forEach((chat) => {
+              list.innerHTML += `
+                <div onclick="openChat('${chat._id}')"
+                  class="p-4 border-b hover:bg-gray-200 cursor-pointer">
+                  
+                  <p class="font-bold">Visitor: ${chat.visitorId}</p>
+                  <p class="text-sm text-gray-600">
+                    ${
+                      chat.messages.length > 0
+                        ? chat.messages[chat.messages.length - 1].text.slice(
+                            0,
+                            25
+                          )
+                        : "No messages yet"
+                    } 
+                  </p>
+                </div>
+              `;
+            });
+          });
+      }
+
+      loadChats();
+      setInterval(loadChats, 3000); // Auto-refresh sidebar
+
+      function scrollToBottom() {
+        const messagesDiv = document.getElementById("messages");
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+      // Open a chat
+      function openChat(id) {
+        selectedChatId = id;
+
+        fetch(`http://localhost:5000/api/chat/${id}`)
+          .then((res) => res.json())
+          .then((chat) => {
+            document.getElementById("chatHeader").innerText = "Chat with: ";
+
+            const messagesDiv = document.getElementById("messages");
+            messagesDiv.innerHTML = "";
+
+            chat.messages.forEach((m) => {
+              messagesDiv.innerHTML += `
+                <div class="p-2 my-1 rounded ${
+                  m.sender === "visitor" ? "bg-blue-100" : "bg-green-100"
+                }">
+                  <b>${m.sender}:</b> ${m.text}
+                  <br>
+                  <small>${new Date(m.time).toLocaleString()}</small>
+                </div>
+              `;
+            });
+            scrollToBottom();
+          });
+      }
+
+      // Send message (admin reply)
+      document.getElementById("msgInput").addEventListener("keypress", (e) => {
+        if (e.key === "Enter" && selectedChatId) {
+          const text = e.target.value.trim();
+          if (!text) return;
+          else {
+            fetch("http://localhost:5000/api/chat/reply", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chatId: selectedChatId,
+                message: text,
+              }),
+            });
+          }
+
+          document.getElementById("messages").innerHTML += `
+            <div class="p-2 my-1 rounded bg-green-100">
+              <b>agent:</b> ${text}
+            </div>
+          `;
+          scrollToBottom();
+
+          socket.emit("admin_reply", {
+            chatId: selectedChatId,
+            text,
+          });
+
+          e.target.value = "";
+        }
+      });
+
+      // Receive visitor messages live
+      socket.on("new_message", (data) => {
+        if (data.chatId === selectedChatId) {
+          document.getElementById("messages").innerHTML += `
+            <div class="p-2 my-1 rounded bg-blue-100">
+              <b>visitor:</b> ${data.message}
+            </div>
+          `;
+          scrollToBottom();
+        }
+      });
+
+      if (agent) {
+        document.getElementById("agentDetails").innerHTML = `
+    <p class="font-bold text-xl">Welcome, ${agent.name}</p>
+    
+  `;
+      } else {
+        // if not logged in => redirect
+        window.location.href = "/agent-login.html";
+      }
+    </script>
+  </body>
+</html>

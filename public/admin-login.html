@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+
+  <body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-96">
+      <h2 class="text-2xl font-bold text-center mb-6">Admin Login</h2>
+
+      <input
+        id="email"
+        type="email"
+        placeholder="Email"
+        class="w-full p-3 mb-3 border rounded-lg"
+      />
+
+      <input
+        id="password"
+        type="password"
+        placeholder="Password"
+        class="w-full p-3 mb-3 border rounded-lg"
+      />
+
+      <button
+        onclick="loginAdmin()"
+        class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700"
+      >
+        Login
+      </button>
+
+      <p id="msg" class="text-center text-red-600 mt-4"></p>
+    </div>
+
+    <script>
+      async function loginAdmin() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        document.getElementById("msg").innerText = data.msg;
+
+        if (res.ok) {
+          localStorage.setItem("adminToken", data.token);
+          window.location.href = "/admin-dashboard.html";
+        }
+      }
+    </script>
+  </body>
+</html>
